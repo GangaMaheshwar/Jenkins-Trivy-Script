@@ -1,0 +1,67 @@
+pipeline {
+  agent any
+  environment {
+      AWS_ACCOUNT_ID="ACCOUNTID"
+      AWS_DEFAULT_REGION="REGION"
+      IMAGE_REPO_NAME="Repository Name"
+      IMAGE_TAG="new"
+      REPOSITORY_URI = "AWS Repository URL"
+  }
+ 
+  stages {
+      
+       stage('Logging into AWS ECR') {
+          steps {
+              script {
+              sh """/usr/local/bin/aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | /usr/local/bin/docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"""
+              } 
+          }
+      }
+  // Building Docker images
+  stage('Jenkins stage name') {
+    steps{
+      script {
+        sh """/usr/local/bin/docker pull ${REPOSITORY_URI}/${IMAGE_REPO_NAME}:${IMAGE_TAG}"""
+      }
+    }
+  }
+  
+  //Scanning Image
+  stage('Trivy Scan') {
+      steps {
+          script{
+              sh """/opt/homebrew/bin/trivy image --severity HIGH,CRITICAL --format template --template "path to load the html template of trivy" -o "Path for output file" ${REPOSITORY_URI}/${IMAGE_REPO_NAME}:${IMAGE_TAG}"""
+      
+      }
+  }
+
+  }
+
+  stage("email notifications") {
+
+    steps {
+
+      emailext (attachmentsPattern: '*/Desktop/JenkinsReport/*.html', body: 'Container security', subject: 'Container Security', to: 'EMAIL ID')
+
+
+      }
+  }
+
+}
+  post {
+      always {
+             archiveArtifacts artifacts: "outputfile.html", fingerprint: true
+                 
+             publishHTML (target: [
+                 allowMissing: false,
+                 alwaysLinkToLastBuild: false,
+                 keepAll: true,
+                reportDir: '.',
+                reportFiles: 'outputfile.html',
+                reportName: 'Trivy Scan',
+          
+     
+                  ])
+              }
+          }
+        }
