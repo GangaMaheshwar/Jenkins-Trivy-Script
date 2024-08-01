@@ -17,7 +17,7 @@ pipeline {
               } 
           }
       }
-  // Building Docker images
+  // Building Docker images in local machine
   stage('Jenkins stage name') {
     steps{
       script {
